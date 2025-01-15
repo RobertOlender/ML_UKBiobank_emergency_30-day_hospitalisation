@@ -144,7 +144,7 @@ custom_summary <- function(data, lev = NULL, model = NULL) {
 }
 
 #Run a model using all features on the train dataset.
-crossValSettings <- trainControl(method = "repeatedcv", number = 50, repeats = 2, savePredictions = TRUE)
+crossValSettings <- trainControl(method = "repeatedcv", number = 5, repeats = 100, savePredictions = TRUE)
 crossVal <- train(as.factor(hospitalised_30_days) ~., 
                   data = train, 
                   family = "binomial", 
