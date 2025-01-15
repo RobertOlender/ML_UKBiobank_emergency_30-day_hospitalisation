@@ -149,7 +149,9 @@ custom_summary <- function(data, lev = NULL, model = NULL) {
 control <- trainControl(method = "repeatedcv",
                         number = 5,
                         repeats = 100,
-                        allowParallel = TRUE)
+                        allowParallel = TRUE,
+                        savePredictions = TRUE, 
+                        summaryFunction = custom_summary)
 metric = "Accuracy"
 tuneGrid = expand.grid(.mtry = (6)) 
 
