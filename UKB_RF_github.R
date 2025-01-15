@@ -126,9 +126,29 @@ test <- df_balanced[ind_sample==2, ]
 
 ####RF MODEL####
 
+# Custom summary function to include additional metrics and calucate 95% CI.
+custom_summary <- function(data, lev = NULL, model = NULL) {
+  confusion_mat <- confusionMatrix(data$pred, data$obs, positive = lev[1])
+  precision <- confusion_mat$byClass['Pos Pred Value']
+  recall <- confusion_mat$byClass['Sensitivity']
+  f1 <- 2 * (precision * recall) / (precision + recall)
+  
+  out <- c(
+    Accuracy = confusion_mat$overall['Accuracy'],
+    Kappa = confusion_mat$overall['Kappa'],
+    BalancedAccuracy = confusion_mat$byClass['Balanced Accuracy'],
+    Sensitivity = confusion_mat$byClass['Sensitivity'],
+    Specificity = confusion_mat$byClass['Specificity'],
+    PosPredValue = confusion_mat$byClass['Pos Pred Value'],
+    NegPredValue = confusion_mat$byClass['Neg Pred Value'],
+    F1 = f1
+  )
+  return(out)
+}
+
 control <- trainControl(method = "repeatedcv",
-                        number = 50,
-                        repeats = 2,
+                        number = 5,
+                        repeats = 100,
                         allowParallel = TRUE)
 metric = "Accuracy"
 tuneGrid = expand.grid(.mtry = (6)) 
@@ -146,25 +166,3 @@ pred_rf <- predict(rf_model, test)
 
 #Confusion matrix for the test dataset.
 confusionMatrix(data = pred_rf, reference = test$hospitalised_30_days,positive='1')
-
-#Generate a variable importance plot.
-varImp(rf_model)
-plot(varImp(rf_model), top=25)
-
-
-#Generate an AUC-ROC.
-prediction_for_ROC <- predict(rf_model, test, type = "prob")
-ROC_rf <- roc(response = test$hospitalised_30_days, predictor = prediction_for_ROC[,2])
-ROC_rf
-ROC_rf_AUC <- auc(ROC_rf)
-ROC_rf_AUC_95ci <- ci.auc(ROC_rf)
-print(ROC_rf_AUC_95ci)
-
-plot(ROC_rf, 
-     main = "ROC Curve for the Random Fo+-rest model: 30-day-hosp", 
-     col = "cadetblue4",
-     lty = 1,
-     lwd = 2,
-     asp = NA,
-     axes = TRUE,
-     print.auc = TRUE)
