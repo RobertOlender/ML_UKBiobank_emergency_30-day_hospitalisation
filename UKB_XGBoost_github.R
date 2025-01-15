@@ -147,6 +147,27 @@ train$lab_train <- as.factor(train$lab_train)
 test$lab_test <- as.factor(test$lab_test)
 
 #XGBoost classification model for 30-day-hospitalisation.
+
+# Custom summary function to include additional metrics and 95% CIs.
+custom_summary <- function(data, lev = NULL, model = NULL) {
+  confusion_mat <- confusionMatrix(data$pred, data$obs, positive = lev[1])
+  precision <- confusion_mat$byClass['Pos Pred Value']
+  recall <- confusion_mat$byClass['Sensitivity']
+  f1 <- 2 * (precision * recall) / (precision + recall)
+  
+  out <- c(
+    Accuracy = confusion_mat$overall['Accuracy'],
+    Kappa = confusion_mat$overall['Kappa'],
+    BalancedAccuracy = confusion_mat$byClass['Balanced Accuracy'],
+    Sensitivity = confusion_mat$byClass['Sensitivity'],
+    Specificity = confusion_mat$byClass['Specificity'],
+    PosPredValue = confusion_mat$byClass['Pos Pred Value'],
+    NegPredValue = confusion_mat$byClass['Neg Pred Value'],
+    F1 = f1
+  )
+  return(out)
+}
+
 grid_tune <- expand.grid(
   nrounds = 1000, #c(500, 750, 1000),  
   max_depth = 4, #c(2,3,4), 
@@ -157,9 +178,11 @@ grid_tune <- expand.grid(
   subsample = 0.5) #c(0.5, 1.0)) 
 
 train_control <- trainControl(method = "repeatedcv",
-                              number = 50,
-                              repeats = 2,
-                              allowParallel = TRUE)
+                              number = 5,
+                              repeats = 100,
+                              allowParallel = TRUE,
+                              savePredictions = TRUE, 
+                              summaryFunction = custom_summary)
 
 xgb_tune <- train(x = train[,-70],
                   y = train[,70],
@@ -197,24 +220,3 @@ xgb.pred <- predict(xgb_model, test)
 confusionMatrix(as.factor(as.numeric(xgb.pred)),
                 as.factor(as.numeric(test$lab_test)),
                 positive = "1")
-
-#Generate a variable importance plot.
-varImp(xgb_model)
-plot(varImp(xgb_model), top = 25)
-
-#Generate an AUC-ROC.
-prediction_for_ROC <- predict(xgb_model, test, type = "prob")
-ROC_xgb <- roc(response = test$lab_test, predictor = prediction_for_ROC[,2])
-ROC_xgb
-ROC_xgb_AUC <- auc(ROC_xgb)
-ROC_xgb_AUC_95ci <- ci.auc(ROC_xgb)
-print(ROC_xgb_AUC_95ci)
-
-plot(ROC_xgb, 
-     main = "ROC Curve for the XGBoost model (30-day-hosp)", 
-     col = "cadetblue4",
-     lty = 1,
-     lwd = 2,
-     asp = NA,
-     axes = TRUE,
-     print.auc = TRUE)
